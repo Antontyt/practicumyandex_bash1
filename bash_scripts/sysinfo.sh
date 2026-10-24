@@ -20,9 +20,16 @@ get_cpu_cores() {
     grep -c '^processor' /proc/cpuinfo
 }
 
+get_memory_mb() {
+    local field=$1
+    awk -v f="${field}:" '$1 == f { printf "%d\n", $2 / 1024 }' /proc/meminfo
+}
+
 print_host_info() {
     echo "=== Host information ==="
     echo "CPU cores: $(get_cpu_cores)"
+    echo "Memory total: $(get_memory_mb MemTotal) MB"
+    echo "Memory available: $(get_memory_mb MemAvailable) MB"
 }
 
 print_user_info() {
