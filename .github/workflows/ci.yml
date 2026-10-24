@@ -2,7 +2,6 @@ name: CI
 
 on:
   push:
-                    
   pull_request:
     branches: [main]
 
@@ -16,36 +15,96 @@ jobs:
       - name: Install bats and shellcheck
         run: sudo apt-get update && sudo apt-get install -y bats shellcheck
 
-      - name: Check line endings (CRLF is not allowed in .sh)
-        run: |
-          if git ls-files '*.sh' | xargs file | grep -q CRLF; then
-            echo "CRLF found in .sh files"
-            exit 1
-          fi
+      - name: Create logs directory
+        run: mkdir -p logs
 
-      - name: Syntax check (bash -n)
+      - name: "1. CRLF check"
+        id: crlf
+        shell: bash
         run: |
-          for f in $(git ls-files '*.sh'); do
-            echo "bash -n $f"
-            bash -n "$f"
-          done
+          set -o pipefail
+          {
+            files=$(git ls-files '*.sh')
+            echo "Checked files:"
+            echo "$files"
+            if [ -n "$files" ] && file $files | grep CRLF > /dev/null; then
+              file $files | grep CRLF
+              echo "FAIL: CRLF line endings found in .sh files"
+              exit 1
+            fi
+            echo "OK: no CRLF in .sh files"
+          } 2>&1 | tee logs/01-crlf.log
 
-      - name: ShellCheck
+      - name: "2. Syntax check (bash -n)"
+        id: syntax
+        shell: bash
         run: |
+          set -o pipefail
+          {
+            failed=0
+            for f in $(git ls-files '*.sh'); do
+              echo "bash -n $f"
+              bash -n "$f" || failed=1
+            done
+            exit $failed
+          } 2>&1 | tee logs/02-syntax.log
+
+      - name: "3. ShellCheck"
+        id: shellcheck
+        shell: bash
+        run: |
+          set -o pipefail
           shopt -s globstar nullglob
           files=(bash_scripts/**/*.sh bash_scripts/*.sh)
-          if [ ${#files[@]} -eq 0 ]; then
-            echo "No shell scripts yet, skipping"
-          else
-            shellcheck "${files[@]}"
-          fi
+          {
+            if [ ${#files[@]} -eq 0 ]; then
+              echo "No shell scripts yet, skipping"
+            else
+              echo "Checking: ${files[*]}"
+              shellcheck "${files[@]}"
+            fi
+          } 2>&1 | tee logs/03-shellcheck.log
 
-      - name: Bats tests
+      - name: "4. Bats tests"
+        id: bats
+        shell: bash
         run: |
+          set -o pipefail
           shopt -s nullglob
           tests=(bash_scripts/tests/*.bats)
           if [ ${#tests[@]} -eq 0 ]; then
-            echo "No tests yet, skipping"
-          else
-            bats "${tests[@]}"
+            echo "No tests yet, skipping" | tee logs/04-bats.log
+            exit 0
+							  
           fi
+          failed=0
+          for t in "${tests[@]}"; do
+            name=$(basename "$t" .bats)
+            echo "::group::Bats: $name"
+            bats "$t" 2>&1 | tee "logs/04-bats-$name.log" || failed=1
+            echo "::endgroup::"
+          done
+          exit $failed
+
+      - name: Job summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## CI results"
+            echo ""
+            echo "| Check | Result |"
+            echo "|---|---|"
+            echo "| 1. CRLF | ${{ steps.crlf.outcome }} |"
+            echo "| 2. Syntax (bash -n) | ${{ steps.syntax.outcome }} |"
+            echo "| 3. ShellCheck | ${{ steps.shellcheck.outcome }} |"
+            echo "| 4. Bats tests | ${{ steps.bats.outcome }} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-logs
+          path: logs/
+          if-no-files-found: warn
