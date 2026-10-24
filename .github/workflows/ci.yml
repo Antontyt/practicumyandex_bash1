@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install bats
+        run: sudo apt-get update && sudo apt-get install -y bats
+
+      - name: ShellCheck
+        run: |
+          shopt -s globstar nullglob
+          files=(bash_scripts/**/*.sh bash_scripts/*.sh)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "No shell scripts yet, skipping"
+          else
+            shellcheck "${files[@]}"
+          fi
+
+      - name: Bats tests
+        run: |
+          shopt -s nullglob
+          tests=(bash_scripts/tests/*.bats)
+          if [ ${#tests[@]} -eq 0 ]; then
+            echo "No tests yet, skipping"
+          else
+            bats "${tests[@]}"
+          fi
