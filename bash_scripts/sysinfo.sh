@@ -30,6 +30,8 @@ print_host_info() {
     echo "CPU cores: $(get_cpu_cores)"
     echo "Memory total: $(get_memory_mb MemTotal) MB"
     echo "Memory available: $(get_memory_mb MemAvailable) MB"
+    echo "Hostname: $(hostname)"
+    echo "Kernel: $(uname -r)"
 }
 
 print_user_info() {
