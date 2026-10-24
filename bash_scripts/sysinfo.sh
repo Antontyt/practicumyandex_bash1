@@ -34,20 +34,26 @@ print_host_info() {
     echo "Kernel: $(uname -r)"
 }
 
-get_user_count() {
-    wc -l < /etc/passwd
+get_all_users() {
+    cut -d: -f1 /etc/passwd
 }
 
-get_regular_users() {
-    awk -F: '$3 >= 1000 && $3 != 65534 { print "  " $1 " (home: " $6 ")" }' /etc/passwd
+get_root_users() {
+    awk -F: '$3 == 0 { print $1 }' /etc/passwd
+}
+
+get_logged_in_users() {
+    who | awk '{ print $1 }' | sort -u
 }
 
 print_user_info() {
     echo "=== User information ==="
-    echo "Current user: $(whoami)"
-    echo "Accounts in /etc/passwd: $(get_user_count)"
-    echo "Regular users (UID >= 1000):"
-    get_regular_users
+    echo "All users:"
+    get_all_users | sed 's/^/  /'
+    echo "Root users (UID 0):"
+    get_root_users | sed 's/^/  /'
+    echo "Logged-in users:"
+    get_logged_in_users | sed 's/^/  /'
 }
 
 main() {
