@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+                    
   pull_request:
     branches: [main]
 
@@ -15,6 +15,20 @@ jobs:
 
       - name: Install bats and shellcheck
         run: sudo apt-get update && sudo apt-get install -y bats shellcheck
+
+      - name: Check line endings (CRLF is not allowed in .sh)
+        run: |
+          if git ls-files '*.sh' | xargs file | grep -q CRLF; then
+            echo "CRLF found in .sh files"
+            exit 1
+          fi
+
+      - name: Syntax check (bash -n)
+        run: |
+          for f in $(git ls-files '*.sh'); do
+            echo "bash -n $f"
+            bash -n "$f"
+          done
 
       - name: ShellCheck
         run: |
