@@ -16,8 +16,13 @@ Without options this help is printed.
 EOF
 }
 
+get_cpu_cores() {
+    grep -c '^processor' /proc/cpuinfo
+}
+
 print_host_info() {
     echo "=== Host information ==="
+    echo "CPU cores: $(get_cpu_cores)"
 }
 
 print_user_info() {
