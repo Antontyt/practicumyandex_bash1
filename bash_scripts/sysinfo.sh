@@ -34,8 +34,14 @@ print_host_info() {
     echo "Kernel: $(uname -r)"
 }
 
+get_user_count() {
+    wc -l < /etc/passwd
+}
+
 print_user_info() {
     echo "=== User information ==="
+    echo "Current user: $(whoami)"
+    echo "Accounts in /etc/passwd: $(get_user_count)"
 }
 
 main() {
