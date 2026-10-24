@@ -22,14 +22,13 @@ jobs:
         id: crlf
         shell: bash
         run: |
-          set -o pipefail
+          files=$(git ls-files '*.sh')
           {
-            files=$(git ls-files '*.sh')
             echo "Checked files:"
             echo "$files"
-            if [ -n "$files" ] && file $files | grep CRLF > /dev/null; then
+            if [ -n "$files" ] && file $files | grep -q CRLF; then
               file $files | grep CRLF
-              echo "FAIL: CRLF line endings found in .sh files"
+              echo "FAIL: CRLF line endings found"
               exit 1
             fi
             echo "OK: no CRLF in .sh files"
@@ -39,7 +38,6 @@ jobs:
         id: syntax
         shell: bash
         run: |
-          set -o pipefail
           {
             failed=0
             for f in $(git ls-files '*.sh'); do
@@ -53,7 +51,6 @@ jobs:
         id: shellcheck
         shell: bash
         run: |
-          set -o pipefail
           shopt -s globstar nullglob
           files=(bash_scripts/**/*.sh bash_scripts/*.sh)
           {
@@ -69,13 +66,11 @@ jobs:
         id: bats
         shell: bash
         run: |
-          set -o pipefail
           shopt -s nullglob
           tests=(bash_scripts/tests/*.bats)
           if [ ${#tests[@]} -eq 0 ]; then
             echo "No tests yet, skipping" | tee logs/04-bats.log
             exit 0
-							  
           fi
           failed=0
           for t in "${tests[@]}"; do
